@@ -1,0 +1,14 @@
+Columna,Tipo,No nulos,% Nulos,Valores únicos
+Complaint ID,int64,28156,0.0,28156
+Product,object,28156,0.0,11
+Sub-product,object,17582,37.56,42
+Issue,object,28154,0.01,89
+Sub-issue,object,13211,53.08,46
+State,object,27735,1.5,59
+ZIP code,float64,27876,0.99,9868
+Date received,object,28156,0.0,78
+Date sent to company,object,28156,0.0,78
+Company,object,28156,0.0,1534
+Company response,object,28156,0.0,6
+Timely response?,object,28156,0.0,2
+Consumer disputed?,object,6006,78.67,2

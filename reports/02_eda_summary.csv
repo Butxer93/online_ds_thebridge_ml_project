@@ -1,0 +1,2 @@
+timestamp,original_shape,final_shape,features_created,outliers_detected,missing_values_final,target_variable,target_classes
+2025-08-31 22:13:46,"(28156, 13)","(28156, 31)",21,10,0,Company response,6

@@ -1,0 +1,2 @@
+timestamp,dataset_shape,model_type,best_parameters,final_accuracy,final_f1_weighted,final_auc,cv_f1_mean,cv_f1_std,overfitting_controlled
+2025-08-30 18:36:40,93024 x 1674,RandomForestClassifier,{},0.7155539772727273,0.6899926931678206,0.7677290456994675,0.945190833434325,0.049517247267262074,Yes

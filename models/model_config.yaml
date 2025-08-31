@@ -1,0 +1,66 @@
+best_parameters: {}
+cv_results_summary:
+  accuracy:
+    mean: 0.9437674923298477
+    std: 0.053199444936451755
+  f1_weighted:
+    mean: 0.945190833434325
+    std: 0.049517247267262074
+  precision_weighted:
+    mean: 0.9565277592732284
+    std: 0.02963459100943419
+  recall_weighted:
+    mean: 0.9437674923298477
+    std: 0.053199444936451755
+final_metrics:
+  accuracy: 0.7155539772727273
+  auc: !!python/object/apply:numpy._core.multiarray.scalar
+  - &id001 !!python/object/apply:numpy.dtype
+    args:
+    - f8
+    - false
+    - true
+    state: !!python/tuple
+    - 3
+    - <
+    - null
+    - null
+    - null
+    - -1
+    - -1
+    - 0
+  - !!binary |
+    +f3ugDyR6D8=
+  f1_macro: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    t1pqaZnr3j8=
+  f1_weighted: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    5E90jmsU5j8=
+  precision_macro: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    Z2gGTTYe4j8=
+  precision_weighted: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    3mRNuOnn5T8=
+  recall_macro: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    /VJ0RXL+3D8=
+  recall_weighted: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    RhdddNHl5j8=
+model_type: RandomForestClassifier
+target_classes:
+- Closed
+- Closed with explanation
+- Closed with monetary relief
+- Closed with non-monetary relief
+- In progress
+- Untimely response
+training_date: '2025-08-30T18:36:40.528868'
