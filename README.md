@@ -44,4 +44,4 @@ Otro modo sería abrir un notebook, arriba a la derecha "Seleccionar Kernel", "S
 
 ## NOTA:
 
-El archivo "final_model.pkl" no ha podido ser subido por peso excesivo.
+El archivo "final_model.pkl" no ha podido ser subido por peso excesivo, por ello ha sido comprimido dentro de la carpeta models. 
