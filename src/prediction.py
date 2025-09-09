@@ -36,19 +36,44 @@ class RobustComplaintPredictor:
     def _load_model_artifacts(self):
         """Carga todos los artefactos del modelo entrenado"""
         try:
-            # Debug: mostrar información del directorio
-            print(f"🔍 Buscando modelos en: {os.path.abspath(self.models_path)}")
-            print(f"📁 Directorio existe: {os.path.exists(self.models_path)}")
+            # Asegurar que la ruta no tenga barras duplicadas
+            models_path = self.models_path.rstrip('/')
             
-            if os.path.exists(self.models_path):
-                files = os.listdir(self.models_path)
+            # Debug: mostrar información del directorio
+            print(f"🔍 Buscando modelos en: {os.path.abspath(models_path)}")
+            print(f"📁 Directorio existe: {os.path.exists(models_path)}")
+            print(f"📁 Ruta original: {self.models_path}")
+            print(f"📁 Ruta limpiada: {models_path}")
+            
+            if os.path.exists(models_path):
+                files = os.listdir(models_path)
                 print(f"📋 Archivos encontrados: {files}")
+            else:
+                # Intentar diferentes rutas posibles
+                possible_paths = [
+                    self.models_path,
+                    self.models_path.rstrip('/'),
+                    os.path.abspath(self.models_path),
+                    '/mount/src/online_ds_thebridge_ml_project/models',
+                    './models',
+                    'models'
+                ]
+                
+                print(f"🔍 Probando rutas alternativas:")
+                for path in possible_paths:
+                    exists = os.path.exists(path)
+                    print(f"   {'✅' if exists else '❌'} {path}")
+                    if exists:
+                        models_path = path
+                        files = os.listdir(models_path)
+                        print(f"   📋 Archivos: {files}")
+                        break
             
             # Rutas de los archivos
-            pkl_path = os.path.join(self.models_path, 'final_model.pkl')
-            zip_path = os.path.join(self.models_path, 'final_model.zip')
-            preprocessor_path = os.path.join(self.models_path, 'preprocessor.pkl')
-            label_encoder_path = os.path.join(self.models_path, 'label_encoder.pkl')
+            pkl_path = os.path.join(models_path, 'final_model.pkl')
+            zip_path = os.path.join(models_path, 'final_model.zip')
+            preprocessor_path = os.path.join(models_path, 'preprocessor.pkl')
+            label_encoder_path = os.path.join(models_path, 'label_encoder.pkl')
             
             model_loaded = False
             
