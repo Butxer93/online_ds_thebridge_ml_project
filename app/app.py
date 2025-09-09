@@ -1,8 +1,9 @@
 import streamlit as st
-import sys
+import os
 
-sys.path.append("../src")
-from prediction import RobustComplaintPredictor
+# Cargar el modelo
+MODEL_PATH = os.path.join(os.path.dirname(__file__), '../src/prediction.py')
+model = os.load(MODEL_PATH)
 
 st.title('Respuestas de empresas a quejas')
 st.write('Introduce los valores de la queja para predecir la reaación de la empresa:')
@@ -14,7 +15,7 @@ zip_code = st.number_input('ZIP code', min_value=501, max_value=99950)
 company = st.text_input('Company', 'Type here...')
 
 if st.button('Predecir'):
-    predictor = RobustComplaintPredictor()
+    predictor = model.RobustComplaintPredictor()
     
     features = [
         {
