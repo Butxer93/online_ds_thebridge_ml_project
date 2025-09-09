@@ -35,31 +35,31 @@ class RobustComplaintPredictor:
     def _load_model_artifacts(self):
         """Carga todos los artefactos del modelo entrenado"""
         import os
-        
+    
         try:
-            # Primero intentamos cargar desde el archivo ZIP
-            zip_path = f'{self.models_path}final_model.zip'
+            # Intentar cargar desde PKL directo primero (más simple)
             pkl_path = f'{self.models_path}final_model.pkl'
+            zip_path = f'{self.models_path}final_model.zip'
             
             model_loaded = False
             
-            # Opción 1: Cargar desde ZIP si existe
-            if os.path.exists(zip_path):
+            # Opción 1: Cargar desde PKL directo si existe
+            if os.path.exists(pkl_path):
+                print(f"Cargando modelo desde PKL: {pkl_path}")
+                with open(pkl_path, 'rb') as f:
+                    self.model = pickle.load(f)
+                model_loaded = True
+            
+            # Opción 2: Cargar desde ZIP si PKL no existe
+            elif os.path.exists(zip_path):
                 print(f"Cargando modelo desde ZIP: {zip_path}")
                 with zipfile.ZipFile(zip_path, "r") as zf:
                     with zf.open("final_model.pkl") as f:
                         self.model = pickle.load(f)
                 model_loaded = True
             
-            # Opción 2: Cargar desde PKL directo si existe
-            elif os.path.exists(pkl_path):
-                print(f"Cargando modelo desde PKL: {pkl_path}")
-                with open(pkl_path, 'rb') as f:
-                    self.model = pickle.load(f)
-                model_loaded = True
-            
             if not model_loaded:
-                raise FileNotFoundError(f"No se encontró ni {zip_path} ni {pkl_path}")
+                raise FileNotFoundError(f"No se encontró ni {pkl_path} ni {zip_path}")
             
             # Cargar preprocessor
             preprocessor_path = f'{self.models_path}preprocessor.pkl'
