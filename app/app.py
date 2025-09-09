@@ -30,15 +30,18 @@ except ImportError as e:
 def load_predictor():
     """Función para cargar el predictor usando cache de Streamlit"""
     
-    # Construir la ruta a models de forma más robusta
-    models_path = os.path.join(project_root, 'models')
+    # Los archivos están en la raíz del proyecto, no en models/
+    models_path = project_root  # Usar la raíz directamente
     
     print(f"🔍 Buscando modelos en: {models_path}")
-    print(f"🔍 Directorio models existe: {os.path.exists(models_path)}")
+    print(f"🔍 Directorio existe: {os.path.exists(models_path)}")
     
     if os.path.exists(models_path):
-        files = os.listdir(models_path)
-        print(f"🔍 Archivos en models: {files}")
+        # Verificar archivos específicos del modelo
+        required_files = ['final_model.zip', 'preprocessor.pkl', 'label_encoder.pkl']
+        for file in required_files:
+            file_path = os.path.join(models_path, file)
+            print(f"🔍 {file}: {'✅' if os.path.exists(file_path) else '❌'}")
     
     # Asegurar que la ruta termine con /
     if not models_path.endswith('/'):

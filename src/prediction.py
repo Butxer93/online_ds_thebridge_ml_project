@@ -69,28 +69,28 @@ class RobustComplaintPredictor:
                         print(f"   📋 Archivos: {files}")
                         break
             
-            # Rutas de los archivos
-            pkl_path = os.path.join(models_path, 'final_model.pkl')
+            # Rutas de los archivos - buscar final_model.zip en lugar de .pkl
             zip_path = os.path.join(models_path, 'final_model.zip')
+            pkl_path = os.path.join(models_path, 'final_model.pkl')  # Por si acaso
             preprocessor_path = os.path.join(models_path, 'preprocessor.pkl')
             label_encoder_path = os.path.join(models_path, 'label_encoder.pkl')
             
             model_loaded = False
             
-            # Intentar cargar el modelo
-            if os.path.exists(pkl_path):
-                print(f"✅ Cargando modelo desde: {pkl_path}")
-                with open(pkl_path, 'rb') as f:
-                    self.model = pickle.load(f)
-                model_loaded = True
-            elif os.path.exists(zip_path):
+            # Intentar cargar el modelo - PRIORIZAR ZIP ya que sabemos que existe
+            if os.path.exists(zip_path):
                 print(f"✅ Cargando modelo desde ZIP: {zip_path}")
                 with zipfile.ZipFile(zip_path, "r") as zf:
                     with zf.open("final_model.pkl") as f:
                         self.model = pickle.load(f)
                 model_loaded = True
+            elif os.path.exists(pkl_path):
+                print(f"✅ Cargando modelo desde PKL: {pkl_path}")
+                with open(pkl_path, 'rb') as f:
+                    self.model = pickle.load(f)
+                model_loaded = True
             else:
-                raise FileNotFoundError(f"No se encontró modelo en {pkl_path} ni en {zip_path}")
+                raise FileNotFoundError(f"No se encontró modelo en {zip_path} ni en {pkl_path}")
             
             # Cargar preprocessor
             if os.path.exists(preprocessor_path):
