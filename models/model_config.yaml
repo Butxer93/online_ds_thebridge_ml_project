@@ -1,19 +1,19 @@
 best_parameters: {}
 cv_results_summary:
   accuracy:
-    mean: 0.9437674923298477
-    std: 0.053199444936451755
+    mean: 0.9428967811911579
+    std: 0.057085614925447614
   f1_weighted:
-    mean: 0.945190833434325
-    std: 0.049517247267262074
+    mean: 0.9444598827117447
+    std: 0.05320301272829893
   precision_weighted:
-    mean: 0.9565277592732284
-    std: 0.02963459100943419
+    mean: 0.9565115865100058
+    std: 0.03166463637711848
   recall_weighted:
-    mean: 0.9437674923298477
-    std: 0.053199444936451755
+    mean: 0.9428967811911579
+    std: 0.057085614925447614
 final_metrics:
-  accuracy: 0.7155539772727273
+  accuracy: 0.7159090909090909
   auc: !!python/object/apply:numpy._core.multiarray.scalar
   - &id001 !!python/object/apply:numpy.dtype
     args:
@@ -30,31 +30,31 @@ final_metrics:
     - -1
     - 0
   - !!binary |
-    +f3ugDyR6D8=
+    fWINd3m/6D8=
   f1_macro: !!python/object/apply:numpy._core.multiarray.scalar
   - *id001
   - !!binary |
-    t1pqaZnr3j8=
+    QW9lkE4X3z8=
   f1_weighted: !!python/object/apply:numpy._core.multiarray.scalar
   - *id001
   - !!binary |
-    5E90jmsU5j8=
+    JfUf4FEO5j8=
   precision_macro: !!python/object/apply:numpy._core.multiarray.scalar
   - *id001
   - !!binary |
-    Z2gGTTYe4j8=
+    C4n7nkcP4j8=
   precision_weighted: !!python/object/apply:numpy._core.multiarray.scalar
   - *id001
   - !!binary |
-    3mRNuOnn5T8=
+    6632qZvj5T8=
   recall_macro: !!python/object/apply:numpy._core.multiarray.scalar
   - *id001
   - !!binary |
-    /VJ0RXL+3D8=
+    42IXqgip3T8=
   recall_weighted: !!python/object/apply:numpy._core.multiarray.scalar
   - *id001
   - !!binary |
-    RhdddNHl5j8=
+    6aKLLrro5j8=
 model_type: RandomForestClassifier
 target_classes:
 - Closed
@@ -63,4 +63,4 @@ target_classes:
 - Closed with non-monetary relief
 - In progress
 - Untimely response
-training_date: '2025-08-30T18:36:40.528868'
+training_date: '2025-09-09T18:24:25.928041'

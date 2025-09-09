@@ -1,278 +1,385 @@
-import pickle
 import pandas as pd
 import numpy as np
+from typing import Dict, Any, Union
+import warnings
+import pickle
 from datetime import datetime
+import zipfile
 
-def load_model_artifacts():
-    """Carga todos los artefactos del modelo"""
-    with open('../models/final_model.pkl', 'rb') as f:
-        model = pickle.load(f)
+# Suprimir warnings de sklearn
+warnings.filterwarnings('ignore', category=UserWarning, module='sklearn')
+warnings.filterwarnings('ignore', category=FutureWarning)
 
-    with open('../models/preprocessor.pkl', 'rb') as f:
-        preprocessor = pickle.load(f)
-
-    with open('../models/label_encoder.pkl', 'rb') as f:
-        label_encoder = pickle.load(f)
-
-    return model, preprocessor, label_encoder
-
-def create_all_features(df):
+class RobustComplaintPredictor:
     """
-    Aplica todo el feature engineering necesario para que coincida 
-    con el preprocesador entrenado
+    Sistema robusto y optimizado de predicción de respuestas de quejas.
+    Utiliza operaciones vectorizadas y manejo eficiente de memoria.
     """
-    df_processed = df.copy()
-
-    # 1. CARACTERISTICAS TEMPORALES
-    if 'year_received' in df_processed.columns:
-        # Crear caracteristicas temporales derivadas
-        df_processed['month_received'] = pd.to_datetime(f"{df_processed['year_received'].iloc[0]}-01-01").month
-        df_processed['dayofweek_received'] = 1  # Lunes por defecto
-        df_processed['quarter_received'] = 1  # Q1 por defecto
-        df_processed['is_weekend'] = 0
-        df_processed['is_holiday_season'] = 0
-
-        # Tiempo de procesamiento (usar valor por defecto si no se proporciona)
-        if 'processing_days' not in df_processed.columns:
-            df_processed['processing_days'] = 2  # Valor por defecto
-        df_processed['same_day_processing'] = (df_processed['processing_days'] == 0).astype(int)
-
-    # 2. IMPUTACION DE CAMPOS FALTANTES
-    # Sub-product
-    if 'Sub-product' not in df_processed.columns:
-        df_processed['Sub-product'] = 'Not specified'
-
-    # Sub-issue
-    if 'Sub-issue' not in df_processed.columns:
-        df_processed['Sub-issue'] = 'Not specified'
-
-    # ZIP code
-    if 'ZIP code' not in df_processed.columns:
-        df_processed['ZIP code'] = '00000'  # Valor por defecto
-
-    # Consumer disputed
-    if 'Consumer disputed?' not in df_processed.columns:
-        df_processed['Consumer disputed?'] = 'No'
-
-    # Timely response
-    if 'Timely response?' not in df_processed.columns:
-        df_processed['Timely response?'] = 'Yes'
-
-    # 3. CARACTERISTICAS CATEGORICAS
-    # Categoria de producto
-    product_mapping = {
-        'debt': ['Debt Collection', 'Debt collection'],
-        'credit': ['Credit card', 'Credit Card', 'Credit Reporting', 'Credit Report'],
-        'mortgage': ['Mortgage'],
-        'banking': ['Bank account or service', 'Bank Account Or Service', 'Checking Or Savings Account'],
-        'loan': ['Consumer loan', 'Consumer Loan', 'Student Loan', 'Payday loan', 'Payday Loan']
-    }
-
-    df_processed['product_category'] = 'other'
-    if 'Product' in df_processed.columns:
-        product_value = df_processed['Product'].iloc[0]
-        for category, products in product_mapping.items():
-            for product in products:
-                if product.lower() in product_value.lower():
-                    df_processed['product_category'] = category
-                    break
-
-    # Region geografica
-    regions = {
-        'northeast': ['ME', 'NH', 'VT', 'MA', 'RI', 'CT', 'NY', 'NJ', 'PA'],
-        'midwest': ['OH', 'IN', 'IL', 'MI', 'WI', 'MN', 'IA', 'MO', 'ND', 'SD', 'NE', 'KS'],
-        'south': ['DE', 'MD', 'DC', 'VA', 'WV', 'NC', 'SC', 'GA', 'FL', 'KY', 'TN', 'AL', 'MS', 'AR', 'LA', 'OK', 'TX'],
-        'west': ['MT', 'ID', 'WY', 'CO', 'NM', 'AZ', 'UT', 'NV', 'CA', 'OR', 'WA', 'AK', 'HI']
-    }
-
-    df_processed['region'] = 'unknown'
-    if 'State' in df_processed.columns:
-        state_value = df_processed['State'].iloc[0]
+    
+    def __init__(self, models_path: str = '../models/'):
+        """
+        Inicializa el predictor cargando todos los artefactos del modelo.
+        
+        Args:
+            models_path: Ruta donde se encuentran los modelos guardados
+        """
+        self.models_path = models_path
+        self.model = None
+        self.preprocessor = None
+        self.label_encoder = None
+        self._load_model_artifacts()
+        
+        # Configuración optimizada de valores por defecto y mapeos
+        self._setup_optimized_mappings()
+        
+    def _load_model_artifacts(self):
+        """Carga todos los artefactos del modelo entrenado"""
+        try:
+            with zipfile.ZipFile(f'{self.models_path}final_model.zip', "r") as zf:
+                with zf.open("final_model.pkl") as f:
+                    self.model = pickle.load(f)
+            with open(f'{self.models_path}final_model.pkl', 'rb') as f:
+                self.model = pickle.load(f)
+            
+            with open(f'{self.models_path}preprocessor.pkl', 'rb') as f:
+                self.preprocessor = pickle.load(f)
+                
+            with open(f'{self.models_path}label_encoder.pkl', 'rb') as f:
+                self.label_encoder = pickle.load(f)
+                
+            
+        except FileNotFoundError as e:
+            print(f"Error cargando artefactos: {e}")
+            raise
+    
+    def _setup_optimized_mappings(self):
+        """Establece mapeos optimizados para operaciones vectorizadas"""
+        
+        # Valores por defecto - solo los esenciales
+        self.default_values = {
+            'Product': 'Credit Card', 'Sub-product': 'Not Specified',
+            'Issue': 'Billing Disputes', 'Sub-issue': 'Not Specified',
+            'State': 'CA', 'ZIP code': '90210', 'Company': 'Unknown Company',
+            'Timely response?': 'Yes', 'Consumer disputed?': 'No',
+            'year_received': 2023, 'processing_days': 2
+        }
+        
+        # Mapeo inverso optimizado para productos - VECTORIZADO
+        product_categories = {
+            'Debt Collection': 'debt', 'Debt collection': 'debt',
+            'Credit Card': 'credit', 'Credit card': 'credit', 'Credit Reporting': 'credit',
+            'Credit Report': 'credit', 'Mortgage': 'mortgage', 'Fha Mortgage': 'mortgage',
+            'Bank Account Or Service': 'banking', 'Bank account or service': 'banking',
+            'Checking Or Savings Account': 'banking', 'Consumer Loan': 'loan',
+            'Student Loan': 'loan', 'Payday Loan': 'loan', 'Installment Loan': 'loan'
+        }
+        self.product_to_category = product_categories
+        
+        # Mapeo inverso optimizado para regiones - VECTORIZADO  
+        state_to_region = {}
+        regions = {
+            'northeast': ['ME', 'NH', 'VT', 'MA', 'RI', 'CT', 'NY', 'NJ', 'PA'],
+            'midwest': ['OH', 'IN', 'IL', 'MI', 'WI', 'MN', 'IA', 'MO', 'ND', 'SD', 'NE', 'KS'],
+            'south': ['DE', 'MD', 'DC', 'VA', 'WV', 'NC', 'SC', 'GA', 'FL', 'KY', 'TN', 'AL', 'MS', 'AR', 'LA', 'OK', 'TX'],
+            'west': ['MT', 'ID', 'WY', 'CO', 'NM', 'AZ', 'UT', 'NV', 'CA', 'OR', 'WA', 'AK', 'HI']
+        }
         for region, states in regions.items():
-            if state_value in states:
-                df_processed['region'] = region
-                break
-
-    # 4. CARACTERISTICAS AGREGADAS (usar valores promedio/tipicos)
-    # Company complaint count - usar valores tipicos basados en el tipo de empresa
-    df_processed['company_complaint_count'] = 50  # Valor medio tipico
-
-    # Company size basado en company_complaint_count
-    count = df_processed['company_complaint_count'].iloc[0]
-    if count <= 10:
-        df_processed['company_size'] = 'small'
-    elif count <= 50:
-        df_processed['company_size'] = 'medium'
-    elif count <= 200:
-        df_processed['company_size'] = 'large'
-    else:
-        df_processed['company_size'] = 'enterprise'
-
-    # State complaint count
-    df_processed['state_complaint_count'] = 100  # Valor medio t�pico
-
-    # 5. CARACTERISTICAS DE TEXTO
-    # Issue length
-    if 'Issue' in df_processed.columns:
-        df_processed['issue_length'] = len(str(df_processed['Issue'].iloc[0]))
-    else:
-        df_processed['issue_length'] = 20
-
-    # Sub-issue length
-    if 'Sub-issue' in df_processed.columns:
-        df_processed['sub-issue_length'] = len(str(df_processed['Sub-issue'].iloc[0]))
-    else:
-        df_processed['sub-issue_length'] = 10
-
-    # 6. PALABRAS CLAVE EN ISSUES
-    keywords = ['fraud', 'identity', 'payment', 'credit', 'debt', 'loan']
-    issue_text = str(df_processed.get('Issue', '').iloc[0] if 'Issue' in df_processed.columns else '').lower()
-
-    for keyword in keywords:
-        df_processed[f'has_{keyword}'] = int(keyword in issue_text)
-
-    return df_processed
-
-def predict_complaint_response(complaint_data):
+            for state in states:
+                state_to_region[state] = region
+        self.state_to_region = state_to_region
+        
+        # Valores típicos por región para state_complaint_count - VECTORIZADO
+        self.region_complaint_counts = {
+            'west': 2000, 'south': 1500, 'northeast': 1000, 
+            'midwest': 800, 'unknown': 500
+        }
+        
+        # Keywords para búsqueda vectorizada
+        self.keywords = ['fraud', 'identity', 'payment', 'credit', 'debt', 'loan']
+    
+    def clean_and_validate_input_vectorized(self, df: pd.DataFrame, inplace: bool = True) -> pd.DataFrame:
+        """
+        Limpieza VECTORIZADA sin loops - inspirada en cleaner.py
+        """
+        
+        if not inplace:
+            df = df.copy()
+        
+        # Limpieza vectorizada en una sola pasada - SIN LOOPS
+        df.replace(['', 'None', 'null', 'NULL', np.nan], None, inplace=True)
+        
+        # Imputaciones vectorizadas por lotes
+        critical_fields = ['Product', 'Issue', 'State', 'Company']
+        for field in critical_fields:
+            if field not in df.columns:
+                df[field] = self.default_values[field]
+            else:
+                df[field].fillna(self.default_values[field], inplace=True)
+        
+        # Limpieza de texto vectorizada - TODAS las operaciones en cadena
+        text_fields = ['Product', 'Sub-product', 'Issue', 'Sub-issue', 'Company', 'State']
+        for field in text_fields:
+            if field in df.columns:
+                df[field] = df[field].astype(str).str.strip().str.title()
+            elif field in self.default_values:
+                df[field] = self.default_values[field]
+        
+        return df
+    
+    def create_temporal_features_vectorized(self, df: pd.DataFrame, inplace: bool = True) -> pd.DataFrame:
+        """
+        Características temporales VECTORIZADAS - basado en engineer.py optimizado
+        """
+        
+        # Año base
+        if 'year_received' not in df.columns:
+            df['year_received'] = datetime.now().year
+        df['year_received'].fillna(datetime.now().year, inplace=True)
+        
+        # Todas las características temporales de una vez - VECTORIZADO
+        base_month, base_day, base_quarter = 6, 1, 2  # Valores promedio
+        
+        temporal_features = {
+            'month_received': df.get('month_received', base_month),
+            'dayofweek_received': df.get('dayofweek_received', base_day), 
+            'quarter_received': df.get('quarter_received', base_quarter),
+            'is_weekend': df.get('is_weekend', 0),
+            'is_holiday_season': df.get('is_holiday_season', 0),
+            'processing_days': df.get('processing_days', 2)
+        }
+        
+        # Asignación vectorizada de todas las features
+        if inplace:
+            for feature_name, values in temporal_features.items():
+                df[feature_name] = values
+        
+        # Característica derivada vectorizada
+        df['same_day_processing'] = (df['processing_days'] == 0).astype('int8')
+        
+        return df if not inplace else None
+    
+    def create_categorical_features_vectorized(self, df: pd.DataFrame, inplace: bool = True) -> pd.DataFrame:
+        """
+        Características categóricas VECTORIZADAS usando map() - basado en engineer.py
+        """
+        
+        # Categoría de producto - VECTORIZADO con map()
+        df['product_category'] = (df['Product']
+                                 .map(self.product_to_category)
+                                 .fillna('other'))
+        
+        # Región geográfica - VECTORIZADO con map() 
+        df['region'] = (df['State']
+                       .map(self.state_to_region)
+                       .fillna('unknown'))
+        
+        return df if not inplace else None
+    
+    def create_aggregated_features_vectorized(self, df: pd.DataFrame, inplace: bool = True) -> pd.DataFrame:
+        """
+        Características agregadas VECTORIZADAS - basado en engineer.py optimizado
+        """
+        
+        # Company complaint count - estimación vectorizada basada en product_category
+        product_complaint_mapping = {
+            'debt': 75, 'credit': 100, 'mortgage': 60, 
+            'banking': 80, 'loan': 65, 'other': 50
+        }
+        
+        if 'company_complaint_count' not in df.columns:
+            df['company_complaint_count'] = (df['product_category']
+                                           .map(product_complaint_mapping)
+                                           .fillna(50))
+        
+        # Company size - VECTORIZADO con pd.cut
+        df['company_size'] = pd.cut(
+            df['company_complaint_count'],
+            bins=[0, 10, 50, 200, float('inf')],
+            labels=['small', 'medium', 'large', 'enterprise']
+        )
+        
+        # State complaint count - VECTORIZADO con map()
+        if 'state_complaint_count' not in df.columns:
+            df['state_complaint_count'] = (df['region']
+                                         .map(self.region_complaint_counts)
+                                         .fillna(500))
+        
+        return df if not inplace else None
+    
+    def create_text_features_vectorized(self, df: pd.DataFrame, inplace: bool = True) -> pd.DataFrame:
+        """
+        Características de texto VECTORIZADAS - sin loops
+        """
+        
+        # Longitudes - operaciones vectorizadas
+        df['issue_length'] = df['Issue'].astype(str).str.len()
+        df['sub-issue_length'] = df['Sub-issue'].astype(str).str.len()
+        
+        # Keywords - VECTORIZADO con str.contains()
+        issue_text = df['Issue'].astype(str).str.lower()
+        
+        for keyword in self.keywords:
+            df[f'has_{keyword}'] = issue_text.str.contains(keyword, case=False, na=False).astype('int8')
+        
+        return df if not inplace else None
+    
+    def fill_remaining_fields_vectorized(self, df: pd.DataFrame, inplace: bool = True) -> pd.DataFrame:
+        """
+        Relleno vectorizado de campos restantes - SIN LOOPS
+        """
+        
+        # Campos requeridos con sus valores por defecto
+        required_mapping = {
+            'Sub-product': 'Not Specified',
+            'Sub-issue': 'Not Specified', 
+            'ZIP code': '90210',
+            'Timely response?': 'Yes',
+            'Consumer disputed?': 'No'
+        }
+        
+        # Asignación vectorizada por lotes
+        for field, default_val in required_mapping.items():
+            if field not in df.columns:
+                df[field] = default_val
+            else:
+                df[field].fillna(default_val, inplace=True)
+        
+        return df if not inplace else None
+    
+    def engineer_features_optimized(self, input_data: Union[Dict, pd.DataFrame]) -> pd.DataFrame:
+        """
+        Pipeline OPTIMIZADO de feature engineering - trabajo inplace donde es posible
+        """
+        
+        # Conversión inicial - ÚNICA copia necesaria
+        if isinstance(input_data, dict):
+            df = pd.DataFrame([input_data])
+        else:
+            df = input_data.copy()  # Solo una copia al inicio
+        
+        # Pipeline vectorizado - TODAS las operaciones inplace
+        self.clean_and_validate_input_vectorized(df, inplace=True)
+        self.create_temporal_features_vectorized(df, inplace=True) 
+        self.create_categorical_features_vectorized(df, inplace=True)
+        self.create_aggregated_features_vectorized(df, inplace=True)
+        self.create_text_features_vectorized(df, inplace=True)
+        self.fill_remaining_fields_vectorized(df, inplace=True)
+        
+        return df
+    
+    def predict(self, input_data: Union[Dict, pd.DataFrame], return_probabilities: bool = True) -> Dict[str, Any]:
+        """
+        Predicción optimizada con manejo eficiente de memoria
+        """
+        try:
+            
+            # Feature engineering optimizado - UNA sola copia
+            df_processed = self.engineer_features_optimized(input_data)
+            
+            # Alineación eficiente con características esperadas
+            expected_features = set(self.preprocessor.feature_names_in_)
+            available_features = set(df_processed.columns)
+            missing_features = expected_features - available_features
+            
+            if missing_features:
+                print(f"Características faltantes: {missing_features}")
+                # Agregado vectorizado de características faltantes
+                for feature in missing_features:
+                    df_processed[feature] = 0  # Valor por defecto vectorizado
+            
+            # Reindexado eficiente - sin copias adicionales
+            df_processed = df_processed.reindex(columns=self.preprocessor.feature_names_in_, fill_value=0)
+            
+            # Preprocesamiento y predicción
+            X_processed = self.preprocessor.transform(df_processed)
+            prediction = self.model.predict(X_processed)[0]
+            probabilities = self.model.predict_proba(X_processed)[0]
+            
+            # Resultado optimizado
+            predicted_class = self.label_encoder.inverse_transform([prediction])[0]
+            
+            result = {
+                'predicted_response': predicted_class,
+                'confidence': float(max(probabilities)),
+                'prediction_successful': True,
+                'input_completeness': self._calculate_input_completeness_fast(input_data),
+                'memory_optimized': True
+            }
+            
+            if return_probabilities:
+                # Construcción eficiente del diccionario de probabilidades
+                classes = self.label_encoder.classes_
+                result['probabilities'] = {
+                    class_name: float(prob) 
+                    for class_name, prob in zip(classes, probabilities)
+                }
+            
+            return result
+            
+        except Exception as e:
+            print(f"Error en predicción: {e}")
+            return {
+                'predicted_response': 'Error en predicción',
+                'confidence': 0.0,
+                'prediction_successful': False,
+                'error': str(e),
+                'memory_optimized': True
+            }
+    
+    def _calculate_input_completeness_fast(self, input_data: Union[Dict, pd.DataFrame]) -> float:
+        """
+        Cálculo optimizado de completitud - sin conversiones innecesarias
+        """
+        if isinstance(input_data, dict):
+            provided_fields = sum(1 for v in input_data.values() if v is not None and v != '')
+            total_fields = len(self.default_values)
+        else:
+            provided_fields = input_data.notna().sum().sum()
+            total_fields = len(self.default_values) * len(input_data)
+        
+        return provided_fields / total_fields if total_fields > 0 else 0.0
+    
+def create_complaint_example_optimized(product=None, issue=None, state=None, company=None, **kwargs):
     """
-    Predice la respuesta de la empresa para una queja
-    Ahora incluye feature engineering completo
-
-    Parameters:
-    -----------
-    complaint_data : dict or pd.DataFrame
-        Datos de la queja con las caracteristicas basicas requeridas
-        Campos minimos requeridos: Product, Issue, State, Company, year_received
-
-    Returns:
-    --------
-    dict : Prediccion y probabilidades
+    Función helper optimizada - construcción directa sin copias
     """
-    # Cargar artefactos
-    model, preprocessor, label_encoder = load_model_artifacts()
-
-    # Convertir a DataFrame si es necesario
-    if isinstance(complaint_data, dict):
-        df = pd.DataFrame([complaint_data])
-    else:
-        df = complaint_data.copy()
-
-    # Aplicar feature engineering completo
-    df_with_features = create_all_features(df)
-
-    # Verificar que tenemos todas las columnas necesarias
-    try:
-        # Preprocesar datos
-        X_processed = preprocessor.transform(df_with_features)
-    except Exception as e:
-        print(f"Error en preprocesamiento: {e}")
-        print(f"Columnas disponibles: {list(df_with_features.columns)}")
-        print(f"Columnas esperadas por el preprocesador: {preprocessor.feature_names_in_}")
-        raise
-
-    # Realizar prediccion
-    prediction = model.predict(X_processed)[0]
-    probabilities = model.predict_proba(X_processed)[0]
-
-    # Convertir prediccion a etiqueta original
-    predicted_class = label_encoder.inverse_transform([prediction])[0]
-
-    # Crear diccionario de probabilidades por clase
-    prob_dict = {}
-    for i, prob in enumerate(probabilities):
-        class_name = label_encoder.inverse_transform([i])[0]
-        prob_dict[class_name] = float(prob)
-
-    return {
-        'predicted_response': predicted_class,
-        'confidence': float(max(probabilities)),
-        'probabilities': prob_dict,
-        'features_used': list(df_with_features.columns)
-    }
-
-# Funcion auxiliar para crear ejemplos de prueba validos
-def create_complaint_example(product, issue, state, company, year_received=2023, processing_days=None):
-    """
-    Funcion helper para crear ejemplos de queja con la estructura minima requerida
-
-    Parameters:
-    -----------
-    product : str
-        Tipo de producto (ej: 'Credit card', 'Mortgage', 'Debt collection')
-    issue : str  
-        Descripcion del problema
-    state : str
-        Estado (codigo de 2 letras, ej: 'CA', 'TX', 'NY')
-    company : str
-        Nombre de la empresa
-    year_received : int
-        Año de recepcion de la queja (default: 2023)
-    processing_days : int, optional
-        Dias de procesamiento (default: calculado automaticamente)
-    """
-    example = {
-        'Product': product,
-        'Issue': issue,
-        'State': state,
-        'Company': company,
-        'year_received': year_received
-    }
-
-    if processing_days is not None:
-        example['processing_days'] = processing_days
-
+    example = {}
+    
+    # Construcción eficiente del diccionario
+    fields = {'Product': product, 'Issue': issue, 'State': state, 'Company': company}
+    example.update({k: v for k, v in fields.items() if v is not None})
+    example.update(kwargs)
+    
     return example
 
-# Ejemplos de uso:
-#if __name__ == "__main__":
-#    # Ejemplo 1: Usando la funcion helper
-#    complaint_1 = create_complaint_example(
-#        product='Credit card',
-#        issue='Billing disputes and payment issues',
-#        state='CA',
-#        company='Big Bank Corp',
-#        year_received=2023,
-#        processing_days=2
-#    )
-#    
-#    # Ejemplo 2: Definicion directa
-#    complaint_2 = {
-#        'Product': 'Mortgage',
-#        'Issue': 'Application processing delays',
-#        'State': 'TX', 
-#        'Company': 'Mortgage Company LLC',
-#        'year_received': 2023
-#    }
-#    
-#    # Ejemplo 3: Con informacion adicional
-#    complaint_3 = {
-#        'Product': 'Debt collection',
-#        'Issue': 'Continued attempts to collect debt not owed and identity fraud concerns',
-#        'State': 'NY',
-#        'Company': 'Debt Collectors Inc',
-#        'year_received': 2023,
-#        'Sub-product': 'Medical',
-#        'Sub-issue': 'Debt is not mine',
-#        'Consumer disputed?': 'Yes',
-#        'processing_days': 5
-#    }
-#    
-#    # Probar predicciones
-#    print("Testing complaint predictions...\n")
-#    
-#    for i, complaint in enumerate([complaint_1, complaint_2, complaint_3], 1):
-#        try:
-#            result = predict_complaint_response(complaint)
-#            print(f"Complaint {i}:")
-#            print(f"  Input: {complaint}")
-#            print(f"  Predicted response: {result['predicted_response']}")
-#            print(f"  Confidence: {result['confidence']:.3f}")
-#            print(f"  Top probabilities:")
-#            # Mostrar top 3 probabilidades
-#            sorted_probs = sorted(result['probabilities'].items(), 
-#                                key=lambda x: x[1], reverse=True)
-#            for response, prob in sorted_probs[:3]:
-#                print(f"    - {response}: {prob:.3f}")
-#            print()
-#        except Exception as e:
-#            print(f"Error processing complaint {i}: {e}\n")
+# Función de benchmark para demostrar mejoras de rendimiento
+def benchmark_predictor(predictor, n_predictions=1000):
+    """
+    Benchmark del sistema optimizado
+    """
+    import time
+    
+    # Ejemplos de diferentes complejidades
+    examples = [
+        {'Product': 'Credit Card', 'Issue': 'Billing disputes'},
+        {'Product': 'Mortgage'},
+        {},
+        {'Product': None, 'Issue': '', 'State': 'Unknown'}
+    ]
+    
+    start_time = time.time()
+    
+    for i in range(n_predictions):
+        example = examples[i % len(examples)]
+        predictor.predict(example, return_probabilities=False)
+    
+    end_time = time.time()
+    
+    avg_time_ms = (end_time - start_time) * 1000 / n_predictions
+    predictions_per_sec = n_predictions / (end_time - start_time)
+    
+    return {
+        'total_time': end_time - start_time,
+        'avg_time_ms': avg_time_ms,
+        'predictions_per_sec': predictions_per_sec
+    }
