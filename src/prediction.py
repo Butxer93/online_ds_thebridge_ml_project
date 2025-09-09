@@ -16,7 +16,7 @@ class RobustComplaintPredictor:
     Utiliza operaciones vectorizadas y manejo eficiente de memoria.
     """
     
-    def __init__(self, models_path: str = '../models/'):
+    def __init__(self, models_path: str = '../models'):
         """
         Inicializa el predictor cargando todos los artefactos del modelo.
         
