@@ -34,22 +34,65 @@ class RobustComplaintPredictor:
         
     def _load_model_artifacts(self):
         """Carga todos los artefactos del modelo entrenado"""
+        import os
+        
         try:
-            with zipfile.ZipFile(f'{self.models_path}final_model.zip', "r") as zf:
-                with zf.open("final_model.pkl") as f:
-                    self.model = pickle.load(f)
-            with open(f'{self.models_path}final_model.pkl', 'rb') as f:
-                self.model = pickle.load(f)
+            # Primero intentamos cargar desde el archivo ZIP
+            zip_path = f'{self.models_path}final_model.zip'
+            pkl_path = f'{self.models_path}final_model.pkl'
             
-            with open(f'{self.models_path}preprocessor.pkl', 'rb') as f:
+            model_loaded = False
+            
+            # Opción 1: Cargar desde ZIP si existe
+            if os.path.exists(zip_path):
+                print(f"Cargando modelo desde ZIP: {zip_path}")
+                with zipfile.ZipFile(zip_path, "r") as zf:
+                    with zf.open("final_model.pkl") as f:
+                        self.model = pickle.load(f)
+                model_loaded = True
+            
+            # Opción 2: Cargar desde PKL directo si existe
+            elif os.path.exists(pkl_path):
+                print(f"Cargando modelo desde PKL: {pkl_path}")
+                with open(pkl_path, 'rb') as f:
+                    self.model = pickle.load(f)
+                model_loaded = True
+            
+            if not model_loaded:
+                raise FileNotFoundError(f"No se encontró ni {zip_path} ni {pkl_path}")
+            
+            # Cargar preprocessor
+            preprocessor_path = f'{self.models_path}preprocessor.pkl'
+            if not os.path.exists(preprocessor_path):
+                raise FileNotFoundError(f"No se encontró: {preprocessor_path}")
+            
+            with open(preprocessor_path, 'rb') as f:
                 self.preprocessor = pickle.load(f)
+            
+            # Cargar label encoder
+            label_encoder_path = f'{self.models_path}label_encoder.pkl'
+            if not os.path.exists(label_encoder_path):
+                raise FileNotFoundError(f"No se encontró: {label_encoder_path}")
                 
-            with open(f'{self.models_path}label_encoder.pkl', 'rb') as f:
+            with open(label_encoder_path, 'rb') as f:
                 self.label_encoder = pickle.load(f)
-                
+            
+            print("✅ Todos los artefactos del modelo cargados correctamente")
             
         except FileNotFoundError as e:
-            print(f"Error cargando artefactos: {e}")
+            print(f"❌ Error cargando artefactos: {e}")
+            print(f"📁 Verificar que existan los archivos en: {self.models_path}")
+            
+            # Listar archivos disponibles para debug
+            if os.path.exists(self.models_path):
+                files = os.listdir(self.models_path)
+                print(f"📋 Archivos disponibles en {self.models_path}: {files}")
+            else:
+                print(f"❌ El directorio {self.models_path} no existe")
+            
+            raise
+        except Exception as e:
+            print(f"❌ Error inesperado: {e}")
             raise
     
     def _setup_optimized_mappings(self):
