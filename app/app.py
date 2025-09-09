@@ -1,9 +1,20 @@
 import streamlit as st
+import sys
 import os
 
-# Cargar el modelo
-MODEL_PATH = os.path.join(os.path.dirname(__file__), '../src/prediction.py')
-model = os.load(MODEL_PATH)
+# Agregar la ruta del directorio src al path de Python
+src_path = os.path.join(os.path.dirname(__file__), '../src')
+sys.path.append(src_path)
+
+# Importar directamente la clase
+from prediction import RobustComplaintPredictor
+
+# Inicializar el predictor (carga automáticamente los modelos)
+@st.cache_resource
+def load_predictor():
+    """Función para cargar el predictor usando cache de Streamlit"""
+    models_path = os.path.join(os.path.dirname(__file__), '../models/')
+    return RobustComplaintPredictor(models_path=models_path)
 
 st.title('Respuestas de empresas a quejas')
 st.write('Introduce los valores de la queja para predecir la reaación de la empresa:')
@@ -15,7 +26,7 @@ zip_code = st.number_input('ZIP code', min_value=501, max_value=99950)
 company = st.text_input('Company', 'Type here...')
 
 if st.button('Predecir'):
-    predictor = model.RobustComplaintPredictor()
+    predictor = load_predictor()
     
     features = [
         {
@@ -30,11 +41,15 @@ if st.button('Predecir'):
     result = predictor.predict(features)
 
     if result['prediction_successful']:
+        # Mostrar la predicción principal
+        st.success(f"Predicción: {result['predicted_response']}")
+        st.info(f"Confianza: {result['confidence']:.3f}")
+        
         # Mostrar top 3 probabilidades
-        st.text(f"  Top probabilities:")
+        st.subheader("Top 3 probabilidades:")
         sorted_probs = sorted(result['probabilities'].items(), 
                             key=lambda x: x[1], reverse=True)
-        for response, prob in sorted_probs[:3]:
-            print(f"    - {response}: {prob:.3f}")
+        for i, (response, prob) in enumerate(sorted_probs[:3], 1):
+            st.write(f"{i}. {response}: {prob:.3f}")
     else:
         st.text(f"❌ Error: {result['error']}")
